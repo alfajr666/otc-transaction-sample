@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTC Treasury Reconciliation Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --border: #1e1e1e;
+            --text: #f0f0f0;
+            --muted: #666666;
+            --gold: #d4a843;
+            --green: #3ecf8e;
+            --red: #f87171;
+            --blue: #60a5fa;
+            --orange: #f7931a;
+            --purple: #a78bfa;
+            --font: 'DM Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .sidebar-brand {
+            font-weight: 600;
+            color: var(--gold);
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+
+        .nav-item {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            transition: 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: rgba(212, 168, 67, 0.1);
+            color: var(--gold);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 240px;
+            padding: 2rem;
+            width: calc(100% - 240px);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+        }
+
+        .header h1 span {
+            color: var(--muted);
+            margin-right: 0.5rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            color: var(--gold);
+        }
+
+        /* Chart Section */
+        .charts-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            border-radius: 8px;
+            height: 350px;
+            /* FIXED HEIGHT TO PREVENT CANVAS EXPANSION */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-inner {
+            flex-grow: 1;
+            position: relative;
+            min-height: 0;
+            /* Important for flex child with absolute canvas */
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            color: var(--text);
+            margin-bottom: 1rem;
+        }
+
+        /* Table */
+        .table-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: auto;
+            max-height: 600px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
+            text-align: left;
+            padding: 1rem;
+            font-weight: 400;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .status-pill {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .status-settled {
+            background: rgba(62, 207, 142, 0.1);
+            color: var(--green);
+        }
+
+        .status-pending {
+            background: rgba(212, 168, 67, 0.1);
+            color: var(--gold);
+        }
+
+        .status-failed {
+            background: rgba(248, 113, 113, 0.1);
+            color: var(--red);
+        }
+
+        .status-reconciling {
+            background: rgba(247, 147, 26, 0.1);
+            color: var(--orange);
+        }
+
+        /* Pages */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .fx-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .fx-title {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            letter-spacing: 0.05rem;
+        }
+
+        .fx-toggle-group {
+            display: flex;
+            background: #111;
+            border-radius: 4px;
+            padding: 2px;
+            margin-bottom: 1rem;
+        }
+
+        .fx-toggle {
+            flex: 1;
+            text-align: center;
+            padding: 0.4rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: 0.2s;
+            border: none;
+            color: var(--muted);
+        }
+
+        .fx-toggle.active {
+            background: var(--gold);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .fx-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .fx-input-group label {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .fx-input {
+            background: #111;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem;
+            font-family: inherit;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+
+        .fx-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .fx-title {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            letter-spacing: 0.05rem;
+        }
+
+        .fx-toggle-group {
+            display: flex;
+            background: #111;
+            border-radius: 4px;
+            padding: 2px;
+            margin-bottom: 1rem;
+        }
+
+        .fx-toggle {
+            flex: 1;
+            text-align: center;
+            padding: 0.4rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: 0.2s;
+            border: none;
+            color: var(--muted);
+        }
+
+        .fx-toggle.active {
+            background: var(--gold);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .fx-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .fx-input-group label {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .fx-input {
+            background: #111;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem;
+            font-family: inherit;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="sidebar-brand">// RECON_SYSTEM</div>
+
+        <div class="fx-section" id="fx-controls">
+            <div class="fx-title">Display Currency</div>
+            <div class="fx-toggle-group">
+                <button class="fx-toggle active" id="btn-idr" onclick="setCurrency('IDR')">IDR</button>
+                <button class="fx-toggle" id="btn-usd" onclick="setCurrency('USD')">USD</button>
+            </div>
+
+            <div class="fx-input-group">
+                <label>FX RATE (1 USD = IDR)</label>
+                <input type="number" id="fx-rate" class="fx-input" value="15426" step="1"
+                    onchange="updateFxRate(this.value)">
+            </div>
+        </div>
+
+
+
+
+
+
+        <div class="nav-item active" onclick="showPage('overview')">Dashboard</div>
+        <div class="nav-item" onclick="showPage('transactions')">Transactions</div>
+        <div class="nav-item" onclick="showPage('discrepancies')">Discrepancies</div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1><span>//</span> Treasury Operations Overview</h1>
+            <div style="font-size: 0.8rem; color: var(--muted);">FY 2024 Audit Trace</div>
+        </div>
+
+        <div id="overview" class="page active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Volume (IDR)</div>
+                    <div class="stat-value" id="val-volume">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Net PnL (IDR)</div>
+                    <div class="stat-value" id="val-pnl">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Settlement Rate</div>
+                    <div class="stat-value" id="val-rate">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active Discrepancies</div>
+                    <div class="stat-value" id="val-discrepancies">-</div>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-box">
+                    <div class="chart-title">// Monthly PnL Performance</div>
+                    <div class="chart-inner">
+                        <canvas id="pnlTrendChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">// Profit Contribution by Pair</div>
+                    <div class="chart-inner">
+                        <canvas id="pnlDonutChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="transactions" class="page">
+            <div class="header">
+                <h2>Transaction Ledger</h2>
+                <div style="font-size: 0.8rem;">Showing all processed trades</div>
+            </div>
+            <div class="table-container">
+                <table id="transactionTable">
+                    <thead>
+                        <tr>
+                            <th>Trade Date</th>
+                            <th>Pair</th>
+                            <th>Volume</th>
+                            <th>Client Amount (IDR)</th>
+                            <th>PnL (IDR)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="discrepancies" class="page">
+            <div class="header">
+                <h2>Reconciliation Pipeline</h2>
+                <div style="font-size: 0.8rem; color: var(--muted);">Items requiring manual action</div>
+            </div>
+            <div class="table-container">
+                <table id="discrepancyTable">
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>Trade Date</th>
+                            <th>Pair</th>
+                            <th>Client</th>
+                            <th>Issue Age</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="discBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // BAKED DATA
+        const CONFIG = {"stats": {"total_volume": 19664269144425.973, "net_pnl": 41362119682.05524, "settlement_rate": 92.77815013404826, "discrepancies": 230}};
+        const DATA = {"transactions": [{"trade_timestamp": "2024-12-31 17:58:19", "pair": "USDT/IDR", "volume_crypto": 412910.3398251725, "idr_client_amount": 6889876262.74032, "net_pnl_idr": 0.0, "status": "RECONCILING"}, {"trade_timestamp": "2024-12-31 17:30:51", "pair": "USDT/IDR", "volume_crypto": 118960.73829188089, "idr_client_amount": 1967824394.5165524, "net_pnl_idr": 0.0, "status": "RECONCILING"}, {"trade_timestamp": "2024-12-31 17:05:55", "pair": "USDC/IDR", "volume_crypto": 276060.23352903005, "idr_client_amount": 4352479969.632355, "net_pnl_idr": 12731550.705140922, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 17:03:32", "pair": "USDT/IDR", "volume_crypto": 149289.7945801914, "idr_client_amount": 2471794590.3908324, "net_pnl_idr": 4736117.265363044, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 16:53:31", "pair": "USDC/IDR", "volume_crypto": 98780.32151124255, "idr_client_amount": 1555721855.253355, "net_pnl_idr": 4393558.006833365, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 16:40:03", "pair": "USDT/IDR", "volume_crypto": 341950.6581205581, "idr_client_amount": 5654066440.566122, "net_pnl_idr": 10263654.65030343, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 16:07:40", "pair": "USDT/IDR", "volume_crypto": 294407.8450109044, "idr_client_amount": 4909718290.548219, "net_pnl_idr": 11684347.495738251, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 14:08:37", "pair": "USDT/IDR", "volume_crypto": 86586.4369477746, "idr_client_amount": 1444917563.9251304, "net_pnl_idr": 2435574.234421968, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 13:54:27", "pair": "USDT/IDR", "volume_crypto": 412595.4615803694, "idr_client_amount": 6824396272.947815, "net_pnl_idr": 12388118.759945575, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 13:37:51", "pair": "BTC/IDR", "volume_crypto": 2.0362724264280243, "idr_client_amount": 1671602420.8925595, "net_pnl_idr": 16800520.796772093, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 13:36:36", "pair": "USDC/IDR", "volume_crypto": 44606.037964495714, "idr_client_amount": 708603439.939702, "net_pnl_idr": 1194432.3495186593, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 13:29:31", "pair": "USDT/IDR", "volume_crypto": 303976.40057793807, "idr_client_amount": 5030297278.773324, "net_pnl_idr": 7104253.763452783, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 13:08:53", "pair": "USDT/IDR", "volume_crypto": 148186.0639727654, "idr_client_amount": 2455077612.297744, "net_pnl_idr": 2972917.450196543, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 12:38:23", "pair": "USDC/IDR", "volume_crypto": 69082.38981263619, "idr_client_amount": 1089054078.9863074, "net_pnl_idr": 2635882.823318475, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 12:24:53", "pair": "USDT/IDR", "volume_crypto": 498269.8620837474, "idr_client_amount": 8302587007.5928545, "net_pnl_idr": 11522269.851644766, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 12:21:44", "pair": "USDT/IDR", "volume_crypto": 341133.75885385973, "idr_client_amount": 5689388736.757521, "net_pnl_idr": 7895692.301192347, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 11:29:06", "pair": "USDT/IDR", "volume_crypto": 453957.4063545628, "idr_client_amount": 7509646968.535855, "net_pnl_idr": 15903287.527805472, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 11:26:50", "pair": "USDT/IDR", "volume_crypto": 387119.2269011412, "idr_client_amount": 6458921352.623096, "net_pnl_idr": 15371204.02141567, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 11:16:35", "pair": "USDT/IDR", "volume_crypto": 434737.45222228527, "idr_client_amount": 7192426991.250564, "net_pnl_idr": 10882191.122972626, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 10:38:01", "pair": "BTC/IDR", "volume_crypto": 0.7110807692819656, "idr_client_amount": 581496636.5402681, "net_pnl_idr": 3622740.1919228975, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 10:19:37", "pair": "USDT/IDR", "volume_crypto": 393022.4593965547, "idr_client_amount": 6554521308.772622, "net_pnl_idr": 0.0, "status": "PENDING"}, {"trade_timestamp": "2024-12-31 09:22:07", "pair": "USDC/IDR", "volume_crypto": 216739.37118345097, "idr_client_amount": 3448194940.071675, "net_pnl_idr": 7180637.616788624, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 09:21:31", "pair": "USDT/IDR", "volume_crypto": 179501.7493707785, "idr_client_amount": 2992270437.691284, "net_pnl_idr": 5340751.163422671, "status": "SETTLED"}, {"trade_timestamp": "2024-12-31 09:05:31", "pair": "USDT/IDR", "volume_crypto": 454247.31638114265, "idr_client_amount": 7517238800.637807, "net_pnl_idr": 15919364.859973015, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 17:50:59", "pair": "USDT/IDR", "volume_crypto": 271959.1980424607, "idr_client_amount": 4528216957.054404, "net_pnl_idr": 12570815.133112349, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 17:20:32", "pair": "USDT/IDR", "volume_crypto": 241802.73441764133, "idr_client_amount": 4018201594.228854, "net_pnl_idr": 5975413.299413452, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 16:19:10", "pair": "USDC/IDR", "volume_crypto": 98427.7908633911, "idr_client_amount": 1553016958.3213525, "net_pnl_idr": 0.0, "status": "PENDING"}, {"trade_timestamp": "2024-12-30 16:16:00", "pair": "USDT/IDR", "volume_crypto": 79633.05302897336, "idr_client_amount": 1325630236.1227171, "net_pnl_idr": 2891980.5620207884, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 15:52:31", "pair": "USDC/IDR", "volume_crypto": 55293.810079082534, "idr_client_amount": 879224835.6053686, "net_pnl_idr": 1482034.276091868, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 15:34:48", "pair": "USDT/IDR", "volume_crypto": 332076.02497569594, "idr_client_amount": 5517402835.252246, "net_pnl_idr": 7657011.518201195, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 15:34:33", "pair": "USDT/IDR", "volume_crypto": 298304.3692777987, "idr_client_amount": 4958931317.14618, "net_pnl_idr": 11309957.690228907, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 15:31:46", "pair": "USDC/IDR", "volume_crypto": 319914.08745365887, "idr_client_amount": 5037472825.1293335, "net_pnl_idr": 14735240.86184796, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 15:13:28", "pair": "PAXG/IDR", "volume_crypto": 9.613543403937983, "idr_client_amount": 335137560.3949878, "net_pnl_idr": 0.0, "status": "RECONCILING"}, {"trade_timestamp": "2024-12-30 14:56:26", "pair": "USDT/IDR", "volume_crypto": 89536.80193621102, "idr_client_amount": 1478153225.6194265, "net_pnl_idr": 2236455.9181199623, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 14:45:12", "pair": "USDT/IDR", "volume_crypto": 136067.64874264842, "idr_client_amount": 2242035036.864641, "net_pnl_idr": 5426490.526944834, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 14:03:50", "pair": "USDT/IDR", "volume_crypto": 302505.6348401741, "idr_client_amount": 5028614787.866508, "net_pnl_idr": 8476306.827421177, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 13:56:10", "pair": "USDC/IDR", "volume_crypto": 206410.6083771478, "idr_client_amount": 3257235194.6591134, "net_pnl_idr": 5912759.8701245915, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 13:46:21", "pair": "USDT/IDR", "volume_crypto": 373443.30197610776, "idr_client_amount": 6220210875.191852, "net_pnl_idr": 16651940.323841233, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 12:36:19", "pair": "PAXG/IDR", "volume_crypto": 5.0747473550443445, "idr_client_amount": 176924744.2456774, "net_pnl_idr": 0.0, "status": "PENDING"}, {"trade_timestamp": "2024-12-30 12:28:43", "pair": "USDC/IDR", "volume_crypto": 268274.19329872413, "idr_client_amount": 4265890015.4940214, "net_pnl_idr": 11420086.455491085, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 12:20:47", "pair": "USDT/IDR", "volume_crypto": 270703.96016031003, "idr_client_amount": 4464716331.060119, "net_pnl_idr": 9004793.523175089, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 11:59:50", "pair": "PAXG/IDR", "volume_crypto": 8.080527506636823, "idr_client_amount": 274863730.18447644, "net_pnl_idr": 2704907.21111456, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 11:43:11", "pair": "USDT/IDR", "volume_crypto": 121837.53092330055, "idr_client_amount": 2026911088.025888, "net_pnl_idr": 4019888.9269831656, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 11:06:42", "pair": "USDC/IDR", "volume_crypto": 59675.13881014922, "idr_client_amount": 949523604.1609852, "net_pnl_idr": 2259714.9347206694, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 10:08:42", "pair": "BTC/IDR", "volume_crypto": 0.5825952356065552, "idr_client_amount": 463771140.217096, "net_pnl_idr": 4279151.7730516875, "status": "SETTLED"}, {"trade_timestamp": "2024-12-30 09:33:27", "pair": "USDT/IDR", "volume_crypto": 172187.214080407, "idr_client_amount": 2864346257.6121225, "net_pnl_idr": 3406125.375828774, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 17:29:30", "pair": "USDC/IDR", "volume_crypto": 68825.09933896529, "idr_client_amount": 1090477437.1878676, "net_pnl_idr": 2089424.840491217, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 16:58:36", "pair": "USDT/IDR", "volume_crypto": 6547.280528694052, "idr_client_amount": 107968269.795546, "net_pnl_idr": 294013.9154014339, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 15:40:04", "pair": "USDC/IDR", "volume_crypto": 158290.98854007106, "idr_client_amount": 2526929308.0988364, "net_pnl_idr": 4510187.4724021, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 15:19:13", "pair": "USDT/IDR", "volume_crypto": 312081.6857305843, "idr_client_amount": 5186529377.947264, "net_pnl_idr": 8227705.162347887, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 15:15:07", "pair": "USDT/IDR", "volume_crypto": 385074.90717578575, "idr_client_amount": 6398413669.104009, "net_pnl_idr": 9514994.516059635, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 15:03:00", "pair": "USDT/IDR", "volume_crypto": 310951.3632540502, "idr_client_amount": 5128595937.348781, "net_pnl_idr": 11378148.321262348, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 14:40:44", "pair": "USDT/IDR", "volume_crypto": 20284.405413760804, "idr_client_amount": 337566562.56680244, "net_pnl_idr": 803354.6502181534, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 12:59:51", "pair": "USDT/IDR", "volume_crypto": 433161.6245923008, "idr_client_amount": 7151552530.196591, "net_pnl_idr": 10100087.760534111, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 12:46:17", "pair": "USDC/IDR", "volume_crypto": 139155.7310670899, "idr_client_amount": 2221771535.4572606, "net_pnl_idr": 5507631.421073315, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 12:40:18", "pair": "USDC/IDR", "volume_crypto": 266398.53307228244, "idr_client_amount": 4220316851.841696, "net_pnl_idr": 7235712.484047707, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 11:35:09", "pair": "USDT/IDR", "volume_crypto": 491112.8206969597, "idr_client_amount": 8098889603.609774, "net_pnl_idr": 20419388.469554983, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 11:19:12", "pair": "USDT/IDR", "volume_crypto": 249456.24118858305, "idr_client_amount": 4152137051.131175, "net_pnl_idr": 10704264.696174584, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 10:59:37", "pair": "USDC/IDR", "volume_crypto": 288363.4985096444, "idr_client_amount": 4565041913.236395, "net_pnl_idr": 6906939.569167225, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 10:52:19", "pair": "USDT/IDR", "volume_crypto": 477497.1165600888, "idr_client_amount": 7945505667.670414, "net_pnl_idr": 11815654.123813, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 10:23:28", "pair": "USDT/IDR", "volume_crypto": 323498.0982115949, "idr_client_amount": 5376026155.160288, "net_pnl_idr": 8528315.3582048, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 10:01:16", "pair": "USDT/IDR", "volume_crypto": 61368.26239002431, "idr_client_amount": 1021556377.3443795, "net_pnl_idr": 2734777.9961646353, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 09:28:32", "pair": "USDT/IDR", "volume_crypto": 65543.10637860597, "idr_client_amount": 1091336085.540222, "net_pnl_idr": 2164401.7203304865, "status": "SETTLED"}, {"trade_timestamp": "2024-12-27 09:02:53", "pair": "BTC/IDR", "volume_crypto": 0.6364660387655218, "idr_client_amount": 509446965.03216034, "net_pnl_idr": 5326619.824626034, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 17:49:57", "pair": "USDT/IDR", "volume_crypto": 490067.4315070629, "idr_client_amount": 8143658698.959066, "net_pnl_idr": 14535201.806337, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 17:49:17", "pair": "USDT/IDR", "volume_crypto": 177018.35422456922, "idr_client_amount": 2918217938.589311, "net_pnl_idr": 6179952.1522957105, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 17:44:15", "pair": "USDT/IDR", "volume_crypto": 274120.2677185116, "idr_client_amount": 4513281121.228557, "net_pnl_idr": 11834700.090285258, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 17:35:15", "pair": "PAXG/IDR", "volume_crypto": 1.3537922731455505, "idr_client_amount": 46678873.31729793, "net_pnl_idr": 0.0, "status": "RECONCILING"}, {"trade_timestamp": "2024-12-26 17:20:13", "pair": "USDC/IDR", "volume_crypto": 285398.01122284954, "idr_client_amount": 4544202494.528084, "net_pnl_idr": 9012328.857263768, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 17:09:12", "pair": "USDT/IDR", "volume_crypto": 98488.54092876948, "idr_client_amount": 1624394901.1411362, "net_pnl_idr": 2948714.603247087, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 17:06:12", "pair": "USDT/IDR", "volume_crypto": 233830.99705226856, "idr_client_amount": 3886522369.58992, "net_pnl_idr": 6551179.0992167, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 16:56:20", "pair": "PAXG/IDR", "volume_crypto": 6.738808683401946, "idr_client_amount": 225963585.1912848, "net_pnl_idr": 3386530.408459572, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 16:56:07", "pair": "USDT/IDR", "volume_crypto": 170702.33004691618, "idr_client_amount": 2815404560.445518, "net_pnl_idr": 5110718.173027219, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 16:23:50", "pair": "USDT/IDR", "volume_crypto": 101499.30301452275, "idr_client_amount": 1685515748.6816614, "net_pnl_idr": 2171751.934264464, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 15:34:10", "pair": "USDT/IDR", "volume_crypto": 229528.69421217745, "idr_client_amount": 3813522213.3215423, "net_pnl_idr": 0.0, "status": "PENDING"}, {"trade_timestamp": "2024-12-26 15:16:34", "pair": "USDT/IDR", "volume_crypto": 45642.31436111067, "idr_client_amount": 758111531.1387213, "net_pnl_idr": 901505.1574362152, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 14:58:09", "pair": "USDT/IDR", "volume_crypto": 394816.9280129809, "idr_client_amount": 6509853363.528776, "net_pnl_idr": 12473297.348350856, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 14:42:24", "pair": "USDC/IDR", "volume_crypto": 65143.881726306645, "idr_client_amount": 1038545732.292402, "net_pnl_idr": 2780259.689697243, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 14:42:21", "pair": "BTC/IDR", "volume_crypto": 1.3825114648119454, "idr_client_amount": 1150989089.5077248, "net_pnl_idr": 10149322.190929156, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 14:19:03", "pair": "BTC/IDR", "volume_crypto": 1.175377371034721, "idr_client_amount": 998958569.3279024, "net_pnl_idr": 7008824.774741238, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 13:32:27", "pair": "USDT/IDR", "volume_crypto": 20763.79261537589, "idr_client_amount": 345367038.72730064, "net_pnl_idr": 856143.0929963348, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 13:18:18", "pair": "USDC/IDR", "volume_crypto": 211373.43668728104, "idr_client_amount": 3344206067.6459928, "net_pnl_idr": 6070635.4477026705, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 12:55:26", "pair": "USDC/IDR", "volume_crypto": 137111.20381267264, "idr_client_amount": 2164880136.479724, "net_pnl_idr": 0.0, "status": "FAILED"}, {"trade_timestamp": "2024-12-26 12:40:49", "pair": "USDC/IDR", "volume_crypto": 188922.17734084724, "idr_client_amount": 3010292969.3967967, "net_pnl_idr": 7760575.424329041, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 12:07:26", "pair": "USDT/IDR", "volume_crypto": 270638.0886071083, "idr_client_amount": 4462219967.314789, "net_pnl_idr": 8999758.659051083, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 09:47:49", "pair": "USDT/IDR", "volume_crypto": 351121.0719759516, "idr_client_amount": 5833209980.990035, "net_pnl_idr": 15615911.815350654, "status": "SETTLED"}, {"trade_timestamp": "2024-12-26 09:02:50", "pair": "BTC/IDR", "volume_crypto": 0.7557302931355954, "idr_client_amount": 628637188.160937, "net_pnl_idr": 6637294.666392908, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 17:46:58", "pair": "USDT/IDR", "volume_crypto": 27669.280467014807, "idr_client_amount": 460382079.1422549, "net_pnl_idr": 1278069.9472622704, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 17:27:38", "pair": "BTC/IDR", "volume_crypto": 0.3523192129715463, "idr_client_amount": 302844551.6724119, "net_pnl_idr": 2154529.0973419216, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 17:22:24", "pair": "BTC/IDR", "volume_crypto": 0.3682025061387571, "idr_client_amount": 309579752.00356466, "net_pnl_idr": 3078249.1323120296, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 17:14:01", "pair": "USDT/IDR", "volume_crypto": 366762.1147798258, "idr_client_amount": 6047161368.402186, "net_pnl_idr": 10977227.9035542, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 16:18:27", "pair": "USDC/IDR", "volume_crypto": 285761.0499155947, "idr_client_amount": 4542185371.618851, "net_pnl_idr": 7205543.304028248, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 16:14:38", "pair": "USDT/IDR", "volume_crypto": 279823.64896499645, "idr_client_amount": 4654950277.010271, "net_pnl_idr": 12000523.898668028, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 15:44:37", "pair": "USDT/IDR", "volume_crypto": 50805.86644743637, "idr_client_amount": 844183007.9679675, "net_pnl_idr": 2343542.4212938873, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 15:29:21", "pair": "USDC/IDR", "volume_crypto": 306133.088333889, "idr_client_amount": 4827538063.6472645, "net_pnl_idr": 14121155.310799897, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 15:21:36", "pair": "USDT/IDR", "volume_crypto": 311683.72763970087, "idr_client_amount": 5132125050.361608, "net_pnl_idr": 10868375.124224909, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 14:46:04", "pair": "USDC/IDR", "volume_crypto": 150402.49526877853, "idr_client_amount": 2393534290.851524, "net_pnl_idr": 4034576.500106099, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 14:18:13", "pair": "BTC/IDR", "volume_crypto": 2.4830577904342976, "idr_client_amount": 2132305535.7611475, "net_pnl_idr": 12864853.666749774, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 13:16:31", "pair": "USDT/IDR", "volume_crypto": 361441.6387069573, "idr_client_amount": 5955917452.9484825, "net_pnl_idr": 13213618.892323392, "status": "SETTLED"}, {"trade_timestamp": "2024-12-25 12:27:44", "pair": "USDT/IDR", "volume_crypto": 260985.41324148065, "idr_client_amount": 4305295251.494955, "net_pnl_idr": 6080338.4567906335, "status": "SETTLED"}], "discrepancies": [{"transaction_id": "OTC-05952", "trade_timestamp": "2024-12-31", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05968", "trade_timestamp": "2024-12-31", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05939", "trade_timestamp": "2024-12-30", "pair": "PAXG/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05887", "trade_timestamp": "2024-12-26", "pair": "PAXG/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05904", "trade_timestamp": "2024-12-26", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-05875", "trade_timestamp": "2024-12-25", "pair": "USDT/IDR", "client_name": "Jakarta Capital Alpha", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-05842", "trade_timestamp": "2024-12-24", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05802", "trade_timestamp": "2024-12-20", "pair": "PAXG/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05804", "trade_timestamp": "2024-12-20", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05728", "trade_timestamp": "2024-12-17", "pair": "USDT/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05723", "trade_timestamp": "2024-12-17", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05726", "trade_timestamp": "2024-12-17", "pair": "BTC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05719", "trade_timestamp": "2024-12-16", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05697", "trade_timestamp": "2024-12-13", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05647", "trade_timestamp": "2024-12-11", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05627", "trade_timestamp": "2024-12-10", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05628", "trade_timestamp": "2024-12-10", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05585", "trade_timestamp": "2024-12-06", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05527", "trade_timestamp": "2024-12-03", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-05525", "trade_timestamp": "2024-12-02", "pair": "USDC/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05498", "trade_timestamp": "2024-11-29", "pair": "BTC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05480", "trade_timestamp": "2024-11-28", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05436", "trade_timestamp": "2024-11-27", "pair": "USDT/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05415", "trade_timestamp": "2024-11-26", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05430", "trade_timestamp": "2024-11-26", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05406", "trade_timestamp": "2024-11-25", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05390", "trade_timestamp": "2024-11-25", "pair": "USDC/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05362", "trade_timestamp": "2024-11-21", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-05317", "trade_timestamp": "2024-11-20", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05271", "trade_timestamp": "2024-11-18", "pair": "USDC/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05245", "trade_timestamp": "2024-11-15", "pair": "USDC/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05240", "trade_timestamp": "2024-11-14", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05231", "trade_timestamp": "2024-11-14", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05156", "trade_timestamp": "2024-11-11", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05143", "trade_timestamp": "2024-11-08", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05068", "trade_timestamp": "2024-11-05", "pair": "USDC/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05046", "trade_timestamp": "2024-11-04", "pair": "USDC/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-05016", "trade_timestamp": "2024-11-01", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04977", "trade_timestamp": "2024-10-31", "pair": "USDC/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04937", "trade_timestamp": "2024-10-29", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04939", "trade_timestamp": "2024-10-29", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04940", "trade_timestamp": "2024-10-29", "pair": "USDC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04890", "trade_timestamp": "2024-10-25", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04902", "trade_timestamp": "2024-10-25", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04864", "trade_timestamp": "2024-10-24", "pair": "BTC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04878", "trade_timestamp": "2024-10-24", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04833", "trade_timestamp": "2024-10-22", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04816", "trade_timestamp": "2024-10-21", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04806", "trade_timestamp": "2024-10-21", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04763", "trade_timestamp": "2024-10-17", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04746", "trade_timestamp": "2024-10-16", "pair": "BTC/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04741", "trade_timestamp": "2024-10-16", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04712", "trade_timestamp": "2024-10-15", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04710", "trade_timestamp": "2024-10-15", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04685", "trade_timestamp": "2024-10-14", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04707", "trade_timestamp": "2024-10-14", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04667", "trade_timestamp": "2024-10-11", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04656", "trade_timestamp": "2024-10-10", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04646", "trade_timestamp": "2024-10-10", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04635", "trade_timestamp": "2024-10-09", "pair": "BTC/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04640", "trade_timestamp": "2024-10-09", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04527", "trade_timestamp": "2024-10-03", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04447", "trade_timestamp": "2024-09-27", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04408", "trade_timestamp": "2024-09-26", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04412", "trade_timestamp": "2024-09-26", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04391", "trade_timestamp": "2024-09-25", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04392", "trade_timestamp": "2024-09-25", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04352", "trade_timestamp": "2024-09-23", "pair": "USDC/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04357", "trade_timestamp": "2024-09-23", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04327", "trade_timestamp": "2024-09-20", "pair": "BTC/IDR", "client_name": "Indo Global Investment", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04336", "trade_timestamp": "2024-09-20", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04326", "trade_timestamp": "2024-09-20", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04333", "trade_timestamp": "2024-09-20", "pair": "PAXG/IDR", "client_name": "Dewi Sartika", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04311", "trade_timestamp": "2024-09-19", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04307", "trade_timestamp": "2024-09-19", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04298", "trade_timestamp": "2024-09-19", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04310", "trade_timestamp": "2024-09-19", "pair": "USDT/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04283", "trade_timestamp": "2024-09-18", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04263", "trade_timestamp": "2024-09-17", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04247", "trade_timestamp": "2024-09-17", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04241", "trade_timestamp": "2024-09-16", "pair": "BTC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04140", "trade_timestamp": "2024-09-10", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04103", "trade_timestamp": "2024-09-06", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04087", "trade_timestamp": "2024-09-05", "pair": "PAXG/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-04091", "trade_timestamp": "2024-09-05", "pair": "PAXG/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04078", "trade_timestamp": "2024-09-05", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-04006", "trade_timestamp": "2024-08-30", "pair": "BTC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03980", "trade_timestamp": "2024-08-29", "pair": "BTC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03963", "trade_timestamp": "2024-08-28", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03904", "trade_timestamp": "2024-08-26", "pair": "BTC/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03886", "trade_timestamp": "2024-08-23", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03856", "trade_timestamp": "2024-08-22", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03857", "trade_timestamp": "2024-08-22", "pair": "USDT/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03863", "trade_timestamp": "2024-08-22", "pair": "USDC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03847", "trade_timestamp": "2024-08-21", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03850", "trade_timestamp": "2024-08-21", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03839", "trade_timestamp": "2024-08-21", "pair": "USDT/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03797", "trade_timestamp": "2024-08-19", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03793", "trade_timestamp": "2024-08-19", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03765", "trade_timestamp": "2024-08-16", "pair": "PAXG/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03766", "trade_timestamp": "2024-08-16", "pair": "USDC/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03691", "trade_timestamp": "2024-08-13", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03678", "trade_timestamp": "2024-08-12", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03665", "trade_timestamp": "2024-08-09", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03604", "trade_timestamp": "2024-08-07", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03616", "trade_timestamp": "2024-08-07", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03570", "trade_timestamp": "2024-08-05", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03566", "trade_timestamp": "2024-08-05", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03511", "trade_timestamp": "2024-08-01", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03501", "trade_timestamp": "2024-07-31", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03430", "trade_timestamp": "2024-07-26", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03404", "trade_timestamp": "2024-07-25", "pair": "PAXG/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03401", "trade_timestamp": "2024-07-25", "pair": "BTC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03391", "trade_timestamp": "2024-07-24", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03381", "trade_timestamp": "2024-07-24", "pair": "USDT/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03367", "trade_timestamp": "2024-07-23", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03341", "trade_timestamp": "2024-07-22", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03319", "trade_timestamp": "2024-07-19", "pair": "USDT/IDR", "client_name": "Indo Global Investment", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03315", "trade_timestamp": "2024-07-19", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03234", "trade_timestamp": "2024-07-16", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03230", "trade_timestamp": "2024-07-15", "pair": "USDC/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03156", "trade_timestamp": "2024-07-10", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03159", "trade_timestamp": "2024-07-10", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03139", "trade_timestamp": "2024-07-09", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03099", "trade_timestamp": "2024-07-08", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03109", "trade_timestamp": "2024-07-08", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03051", "trade_timestamp": "2024-07-04", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-03041", "trade_timestamp": "2024-07-03", "pair": "PAXG/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-03036", "trade_timestamp": "2024-07-03", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02966", "trade_timestamp": "2024-06-28", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02857", "trade_timestamp": "2024-06-21", "pair": "USDC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02868", "trade_timestamp": "2024-06-21", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02803", "trade_timestamp": "2024-06-19", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02753", "trade_timestamp": "2024-06-17", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02737", "trade_timestamp": "2024-06-14", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02749", "trade_timestamp": "2024-06-14", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02715", "trade_timestamp": "2024-06-13", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02686", "trade_timestamp": "2024-06-12", "pair": "BTC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02667", "trade_timestamp": "2024-06-11", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02672", "trade_timestamp": "2024-06-11", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02648", "trade_timestamp": "2024-06-10", "pair": "BTC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02657", "trade_timestamp": "2024-06-10", "pair": "USDT/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02650", "trade_timestamp": "2024-06-10", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02594", "trade_timestamp": "2024-06-06", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02529", "trade_timestamp": "2024-06-03", "pair": "BTC/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02489", "trade_timestamp": "2024-05-30", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02458", "trade_timestamp": "2024-05-29", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02443", "trade_timestamp": "2024-05-28", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02447", "trade_timestamp": "2024-05-28", "pair": "USDT/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02437", "trade_timestamp": "2024-05-28", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02370", "trade_timestamp": "2024-05-23", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02362", "trade_timestamp": "2024-05-23", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02352", "trade_timestamp": "2024-05-22", "pair": "BTC/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02324", "trade_timestamp": "2024-05-21", "pair": "BTC/IDR", "client_name": "Jakarta Capital Alpha", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02331", "trade_timestamp": "2024-05-21", "pair": "BTC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02297", "trade_timestamp": "2024-05-20", "pair": "BTC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02256", "trade_timestamp": "2024-05-16", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02233", "trade_timestamp": "2024-05-15", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02206", "trade_timestamp": "2024-05-14", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02194", "trade_timestamp": "2024-05-14", "pair": "USDC/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02195", "trade_timestamp": "2024-05-14", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02182", "trade_timestamp": "2024-05-13", "pair": "BTC/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02189", "trade_timestamp": "2024-05-13", "pair": "USDC/IDR", "client_name": "Budi Santoso", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02162", "trade_timestamp": "2024-05-10", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02141", "trade_timestamp": "2024-05-09", "pair": "USDC/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-02072", "trade_timestamp": "2024-05-06", "pair": "USDC/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01995", "trade_timestamp": "2024-05-01", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-02009", "trade_timestamp": "2024-05-01", "pair": "USDC/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01980", "trade_timestamp": "2024-04-30", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01951", "trade_timestamp": "2024-04-29", "pair": "USDT/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01928", "trade_timestamp": "2024-04-26", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01941", "trade_timestamp": "2024-04-26", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01912", "trade_timestamp": "2024-04-25", "pair": "USDC/IDR", "client_name": "Jakarta Capital Alpha", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01900", "trade_timestamp": "2024-04-24", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01861", "trade_timestamp": "2024-04-22", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01845", "trade_timestamp": "2024-04-22", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01751", "trade_timestamp": "2024-04-16", "pair": "USDT/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01748", "trade_timestamp": "2024-04-15", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-01694", "trade_timestamp": "2024-04-11", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-01678", "trade_timestamp": "2024-04-10", "pair": "USDC/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01676", "trade_timestamp": "2024-04-10", "pair": "USDC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01653", "trade_timestamp": "2024-04-09", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01650", "trade_timestamp": "2024-04-09", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-01622", "trade_timestamp": "2024-04-08", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01610", "trade_timestamp": "2024-04-05", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01612", "trade_timestamp": "2024-04-05", "pair": "USDT/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01523", "trade_timestamp": "2024-04-02", "pair": "USDC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01506", "trade_timestamp": "2024-04-01", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-01486", "trade_timestamp": "2024-03-29", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-01381", "trade_timestamp": "2024-03-25", "pair": "BTC/IDR", "client_name": "Mega Lestari", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-01345", "trade_timestamp": "2024-03-21", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01355", "trade_timestamp": "2024-03-21", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01320", "trade_timestamp": "2024-03-20", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01313", "trade_timestamp": "2024-03-20", "pair": "BTC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01197", "trade_timestamp": "2024-03-13", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01121", "trade_timestamp": "2024-03-08", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01064", "trade_timestamp": "2024-03-05", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-01040", "trade_timestamp": "2024-03-04", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00951", "trade_timestamp": "2024-02-27", "pair": "USDC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00956", "trade_timestamp": "2024-02-27", "pair": "BTC/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00932", "trade_timestamp": "2024-02-26", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00888", "trade_timestamp": "2024-02-23", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00899", "trade_timestamp": "2024-02-23", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00884", "trade_timestamp": "2024-02-22", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-00842", "trade_timestamp": "2024-02-20", "pair": "USDT/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00774", "trade_timestamp": "2024-02-16", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-00758", "trade_timestamp": "2024-02-15", "pair": "USDC/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00713", "trade_timestamp": "2024-02-13", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00676", "trade_timestamp": "2024-02-12", "pair": "BTC/IDR", "client_name": "Jakarta Capital Alpha", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-00606", "trade_timestamp": "2024-02-07", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00597", "trade_timestamp": "2024-02-06", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00599", "trade_timestamp": "2024-02-06", "pair": "USDC/IDR", "client_name": "Andi Pratama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00465", "trade_timestamp": "2024-01-30", "pair": "BTC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00383", "trade_timestamp": "2024-01-24", "pair": "USDT/IDR", "client_name": "Mega Lestari", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00353", "trade_timestamp": "2024-01-22", "pair": "USDT/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00330", "trade_timestamp": "2024-01-19", "pair": "USDT/IDR", "client_name": "Budi Santoso", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-00276", "trade_timestamp": "2024-01-17", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00270", "trade_timestamp": "2024-01-17", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00188", "trade_timestamp": "2024-01-11", "pair": "PAXG/IDR", "client_name": "PT Teknologi Nusantara", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-00185", "trade_timestamp": "2024-01-11", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-00159", "trade_timestamp": "2024-01-10", "pair": "USDT/IDR", "client_name": "PT Maju Jaya Bersama", "status": "FAILED", "issue_age": "24h"}, {"transaction_id": "OTC-00102", "trade_timestamp": "2024-01-05", "pair": "PAXG/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00113", "trade_timestamp": "2024-01-05", "pair": "USDC/IDR", "client_name": "PT Maju Jaya Bersama", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00095", "trade_timestamp": "2024-01-05", "pair": "USDC/IDR", "client_name": "Siti Aminah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00069", "trade_timestamp": "2024-01-04", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00065", "trade_timestamp": "2024-01-03", "pair": "BTC/IDR", "client_name": "PT Teknologi Nusantara", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00029", "trade_timestamp": "2024-01-02", "pair": "USDT/IDR", "client_name": "PT Sumber Berkah", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00030", "trade_timestamp": "2024-01-02", "pair": "BTC/IDR", "client_name": "Indo Global Investment", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00028", "trade_timestamp": "2024-01-02", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}, {"transaction_id": "OTC-00006", "trade_timestamp": "2024-01-01", "pair": "USDT/IDR", "client_name": "Dewi Sartika", "status": "RECONCILING", "issue_age": "24h"}], "charts": {"pnl_trend": [3674409758.377928, 3346256138.0301046, 3592645840.438103, 3261328195.219864, 3645648893.7371845, 3157837439.489953, 3644375618.603112, 3238897542.198085, 3410034868.6659117, 3674092020.1074824, 3631702415.081277, 3084890952.1062303], "pnl_by_pair": {"labels": ["BTC/IDR", "PAXG/IDR", "USDC/IDR", "USDT/IDR"], "data": [4100140292.0572953, 594003635.8048682, 14269725845.824167, 22398249908.368904]}}};
+        // STATE-MARKER
+        let STATE = {
+            currency: 'IDR',
+            fxRate: 15426
+        };
+
+        function setCurrency(curr) {
+            STATE.currency = curr;
+            document.getElementById('btn-idr').classList.toggle('active', curr === 'IDR');
+            document.getElementById('btn-usd').classList.toggle('active', curr === 'USD');
+            updateDashboard();
+        }
+
+        function updateFxRate(val) {
+            STATE.fxRate = parseFloat(val) || 15426;
+            if (STATE.currency === 'USD') updateDashboard();
+        }
+
+        function formatVal(num) {
+            if (num === null || num === undefined) return '-';
+            if (STATE.currency === 'USD') {
+                const usdVal = num / STATE.fxRate;
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(usdVal);
+            }
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) targetPage.classList.add('active');
+            
+            // Find and activate nav item
+            document.querySelectorAll('.nav-item').forEach(n => {
+                if (n.textContent.toLowerCase().includes(pageId)) n.classList.add('active');
+            });
+        }
+
+        function updateDashboard() {
+            // Stats
+            document.getElementById('val-volume').innerText = formatVal(CONFIG.stats.total_volume);
+            document.getElementById('val-pnl').innerText = formatVal(CONFIG.stats.net_pnl);
+            document.getElementById('val-rate').innerText = CONFIG.stats.settlement_rate.toFixed(2) + '%';
+            document.getElementById('val-discrepancies').innerText = CONFIG.stats.discrepancies;
+            
+            // Labels
+            document.querySelector('#val-volume').closest('.stat-card').querySelector('.stat-label').innerText = `TOTAL VOLUME (${STATE.currency})`;
+            document.querySelector('#val-pnl').closest('.stat-card').querySelector('.stat-label').innerText = `NET PNL (${STATE.currency})`;
+
+            // Table Headers
+            const table = document.getElementById('transactionTable');
+            if (table) {
+                const headers = table.querySelectorAll('th');
+                if (headers && headers.length > 4) {
+                    headers[3].innerText = `Client Amount (${STATE.currency})`;
+                    headers[4].innerText = `PnL (${STATE.currency})`;
+                }
+            }
+
+            // UI Components
+            renderTable();
+            renderPipeline();
+            renderCharts();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('txBody');
+            if (!tbody) return;
+            tbody.innerHTML = (DATA.transactions || []).map(tx => `
+                <tr>
+                    <td>${tx.trade_timestamp}</td>
+                    <td>${tx.pair}</td>
+                    <td>${(tx.volume_crypto || 0).toFixed(4)}</td>
+                    <td>${formatVal(tx.idr_client_amount)}</td>
+                    <td>${formatVal(tx.net_pnl_idr)}</td>
+                    <td><span class="status status-${tx.status.toLowerCase()}">${tx.status}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPipeline() {
+            const tbody = document.getElementById('discBody');
+            if (!tbody) return;
+            tbody.innerHTML = (DATA.discrepancies || []).map(tx => `
+                <tr>
+                    <td>${tx.transaction_id}</td>
+                    <td>${tx.trade_timestamp}</td>
+                    <td>${tx.pair}</td>
+                    <td>${tx.client_name}</td>
+                    <td>${tx.issue_age || '24h'}</td>
+                    <td><span class="status status-${tx.status.toLowerCase()}">${tx.status}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        let charts = {};
+
+                function renderCharts() {
+            if (!DATA.charts) return;
+            // Destroy existing if any
+            Object.values(charts).forEach(c => c.destroy());
+
+            // Real data from Python
+            const pnlData = DATA.charts.pnl_trend;
+            const displayPnl = STATE.currency === 'USD' ? pnlData.map(v => v / STATE.fxRate) : pnlData;
+
+            const volData = DATA.charts.pnl_by_pair.data;
+            const displayVol = STATE.currency === 'USD' ? volData.map(v => v / STATE.fxRate) : volData;
+            const volLabels = DATA.charts.pnl_by_pair.labels;
+
+            // PnL Chart
+            const pnlCanvas = document.getElementById('pnlTrendChart');
+            if (pnlCanvas) {
+                charts.pnl = new Chart(pnlCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                        datasets: [{
+                            label: `Net PnL (${STATE.currency})`,
+                            data: displayPnl,
+                            borderColor: '#E2B13C',
+                            backgroundColor: 'rgba(226, 177, 60, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { 
+                                grid: { color: '#222' }, 
+                                ticks: { color: '#666', callback: value => STATE.currency === 'USD' ? '$' + value.toLocaleString() : value.toLocaleString() } 
+                            },
+                            x: { grid: { display: false }, ticks: { color: '#666' } }
+                        }
+                    }
+                });
+            }
+
+            // Volume Chart
+            const volCanvas = document.getElementById('pnlDonutChart');
+            if (volCanvas) {
+                charts.vol = new Chart(volCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: volLabels,
+                        datasets: [{
+                            label: `Profit (${STATE.currency})`,
+                            data: displayVol,
+                            backgroundColor: '#E2B13C'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { 
+                                grid: { color: '#222' }, 
+                                ticks: { color: '#666', callback: value => STATE.currency === 'USD' ? '$' + value.toLocaleString() : value.toLocaleString() } 
+                            },
+                            x: { grid: { display: false }, ticks: { color: '#666' } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // INIT
+        updateDashboard();
+    </script>
+</body>
+
+</html>

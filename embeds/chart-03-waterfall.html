@@ -1,0 +1,31 @@
+<div style="background:#111111; border-radius:8px; padding:24px; margin:32px 0; font-family:'DM Mono', monospace; color:#f0f0f0;">
+  <canvas id="chart-03" height="240"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+  (function() {
+    
+    const ctx = document.getElementById('chart-03').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Gross Spread', 'Tax Paid', 'Net PnL'],
+            datasets: [{
+                data: [np.float64(79675620338.64561), np.float64(38313500656.59038), np.float64(41362119682.05524)],
+                backgroundColor: ['#a78bfa', '#f87171', '#3ecf8e'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#f0f0f0', font: { family: "'DM Mono', monospace", size: 11 } } },
+                y: { grid: { color: '#1e1e1e' }, ticks: { color: '#666666', font: { family: "'DM Mono', monospace", size: 10 } } }
+            }
+        }
+    });
+
+  })();
+  </script>
+</div>

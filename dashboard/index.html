@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OTC Treasury Dashboard · Delomite</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --surface2: #1a1e28;
+      --border: #252935;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --gold: #d4a843;
+      --gold-dim: #a07830;
+      --green: #3ecf8e;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+      --usdt: #26a17b;
+      --usdc: #2775ca;
+      --btc: #f7931a;
+      --paxg: #d4a843;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Fraunces', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: -0.5px;
+    }
+
+    .logo span {
+      color: var(--text);
+      font-weight: 300;
+    }
+
+    .topbar-meta {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--green);
+      font-weight: 500;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: calc(100vh - 61px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+    }
+
+    .nav-section {
+      padding: 0 16px;
+      margin-bottom: 8px;
+    }
+
+    .nav-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 8px;
+      margin-bottom: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.88rem;
+      transition: all 0.15s;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: var(--surface2);
+      color: var(--gold);
+    }
+
+    .nav-item .icon {
+      font-size: 1rem;
+      width: 18px;
+      text-align: center;
+    }
+
+    .sidebar-pair-list {
+      padding: 8px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pair-tag {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .pair-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .pair-dot.usdt {
+      background: var(--usdt);
+    }
+
+    .pair-dot.usdc {
+      background: var(--usdc);
+    }
+
+    .pair-dot.btc {
+      background: var(--btc);
+    }
+
+    .pair-dot.paxg {
+      background: var(--paxg);
+    }
+
+    .pair-pct {
+      color: var(--muted);
+    }
+
+    /* ── MAIN ── */
+    .main {
+      padding: 28px 32px;
+      overflow-x: hidden;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    /* ── KPI STRIP ── */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    .kpi.gold::before {
+      background: var(--gold);
+    }
+
+    .kpi.green::before {
+      background: var(--green);
+    }
+
+    .kpi.blue::before {
+      background: var(--blue);
+    }
+
+    .kpi.purple::before {
+      background: var(--purple);
+    }
+
+    .kpi-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .kpi-value {
+      font-family: 'Fraunces', serif;
+      font-size: 1.7rem;
+      font-weight: 600;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .kpi-value.gold {
+      color: var(--gold);
+    }
+
+    .kpi-value.green {
+      color: var(--green);
+    }
+
+    .kpi-value.blue {
+      color: var(--blue);
+    }
+
+    .kpi-value.purple {
+      color: var(--purple);
+    }
+
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ── GRID ── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text);
+    }
+
+    .card-badge {
+      font-size: 0.68rem;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    /* ── CHART CANVAS ── */
+    .chart-wrap {
+      position: relative;
+    }
+
+    /* ── BAR CHART (CSS) ── */
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 140px;
+    }
+
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .bar {
+      width: 100%;
+      border-radius: 4px 4px 0 0;
+      transition: opacity 0.2s;
+      cursor: pointer;
+      min-height: 4px;
+    }
+
+    .bar:hover {
+      opacity: 0.8;
+    }
+
+    .bar-label {
+      font-size: 0.6rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      text-align: center;
+    }
+
+    /* ── LINE CHART (SVG) ── */
+    .line-chart-wrap {
+      width: 100%;
+      overflow: hidden;
+    }
+
+    /* ── DONUT ── */
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .donut-svg {
+      flex-shrink: 0;
+    }
+
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .legend-name {
+      color: var(--text);
+    }
+
+    .legend-val {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    /* ── STATUS PILLS ── */
+    .status-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .status-pill {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+
+    .status-pill .num {
+      font-family: 'Fraunces', serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .status-pill .lbl {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .status-pill.settled .num {
+      color: var(--green);
+    }
+
+    .status-pill.pending .num {
+      color: var(--gold);
+    }
+
+    .status-pill.recon .num {
+      color: var(--blue);
+    }
+
+    .status-pill.failed .num {
+      color: var(--red);
+    }
+
+    /* ── TABLE ── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      border-bottom: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+      color: var(--text);
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background: var(--surface2);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+
+    .badge.buy {
+      background: rgba(96, 165, 250, 0.15);
+      color: var(--blue);
+    }
+
+    .badge.sell {
+      background: rgba(248, 113, 113, 0.15);
+      color: var(--red);
+    }
+
+    .badge.settled {
+      background: rgba(62, 207, 142, 0.15);
+      color: var(--green);
+    }
+
+    .badge.pending {
+      background: rgba(212, 168, 67, 0.15);
+      color: var(--gold);
+    }
+
+    .badge.recon {
+      background: rgba(96, 165, 250, 0.1);
+      color: var(--blue);
+    }
+
+    .badge.failed {
+      background: rgba(248, 113, 113, 0.1);
+      color: var(--red);
+    }
+
+    .pair-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+    }
+
+    /* ── PRICER ── */
+    .pricer-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .form-input,
+    .form-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-family: 'DM Mono', monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+      border-color: var(--gold);
+    }
+
+    .form-select option {
+      background: var(--surface2);
+    }
+
+    .pricer-result {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .pricer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .pricer-item {
+      text-align: center;
+    }
+
+    .pricer-item .p-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .pricer-item .p-value {
+      font-family: 'Fraunces', serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .pricer-item .p-value.buy-quote {
+      color: var(--blue);
+    }
+
+    .pricer-item .p-value.sell-quote {
+      color: var(--red);
+    }
+
+    .pricer-item .p-value.pnl {
+      color: var(--green);
+    }
+
+    .calc-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--gold);
+      color: #0d0f14;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: opacity 0.2s;
+    }
+
+    .calc-btn:hover {
+      opacity: 0.85;
+    }
+
+    .pricer-note {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── HORIZONTAL BAR (client pnl) ── */
+    .hbar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hbar-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hbar-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+    }
+
+    .hbar-name {
+      color: var(--text);
+    }
+
+    .hbar-val {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .hbar-track {
+      background: var(--surface2);
+      border-radius: 3px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .hbar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--gold);
+      transition: width 0.8s ease;
+    }
+
+    /* ── PAGE TITLE ── */
+    .page-title {
+      margin-bottom: 24px;
+    }
+
+    .page-title h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .page-title p {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    /* ── PAIR PNL TABLE ── */
+    .pair-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pair-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-radius: 8px;
+    }
+
+    .pair-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pair-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .pair-txcount {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .pair-nums {
+      display: flex;
+      gap: 24px;
+      text-align: right;
+    }
+
+    .pair-num-item .lbl {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .pair-num-item .val {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+
+    /* ── CURRENCY TOGGLE ── */
+    .currency-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: 'DM Mono', monospace;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .currency-btn:hover {
+      border-color: var(--gold);
+    }
+
+    .currency-btn.active {
+      background: var(--gold);
+      color: #0d0f14;
+      border-color: var(--gold);
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .kpi-strip {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .pricer-form {
+        grid-template-columns: 1fr;
+      }
+
+      .pricer-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo">delomite<span>.otc</span></div>
+    <div class="topbar-meta">
+      <span>FY 2024 · Synthetic Demo Dataset</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="btn-idr" class="currency-btn active" onclick="setCurrency('IDR')">IDR</button>
+        <button id="btn-usd" class="currency-btn" onclick="setCurrency('USD')">USD</button>
+        <input type="number" id="fx-rate" value="15426" placeholder="FX Rate"
+          style="width:80px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:4px 8px; border-radius:4px; font-size:0.75rem; font-family:'DM Mono',monospace;"
+          onchange="updateFxRate()" />
+      </div>
+      <div class="live-badge">
+        <div class="live-dot"></div>Dashboard Active
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="nav-section">
+        <div class="nav-label">Analytics</div>
+        <div class="nav-item active" onclick="showPage('overview')">
+          <span class="icon">◈</span> Overview
+        </div>
+        <div class="nav-item" onclick="showPage('pnl')">
+          <span class="icon">◉</span> P&amp;L Analysis
+        </div>
+        <div class="nav-item" onclick="showPage('transactions')">
+          <span class="icon">≡</span> Transactions
+        </div>
+        <div class="nav-item" onclick="showPage('pricer')">
+          <span class="icon">⊛</span> Pricer
+        </div>
+      </div>
+
+      <div class="nav-section" style="margin-top:20px;">
+        <div class="nav-label">Pairs</div>
+        <div class="sidebar-pair-list">
+          <div class="pair-tag">
+            <span><span class="pair-dot usdt"></span>USDT/IDR</span>
+            <span class="pair-pct">50%</span>
+          </div>
+          <div class="pair-tag">
+            <span><span class="pair-dot usdc"></span>USDC/IDR</span>
+            <span class="pair-pct">35%</span>
+          </div>
+          <div class="pair-tag">
+            <span><span class="pair-dot btc"></span>BTC/IDR</span>
+            <span class="pair-pct">10%</span>
+          </div>
+          <div class="pair-tag">
+            <span><span class="pair-dot paxg"></span>PAXG/IDR</span>
+            <span class="pair-pct">5%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-section" style="margin-top:24px; padding: 16px;">
+        <div style="font-size:0.72rem; color:var(--muted); line-height:1.6;">
+          Built by <strong style="color:var(--gold)">Gilang F.W.</strong><br>
+          Senior Treasury Ops<br>
+          <a href="https://delomite.com" style="color:var(--gold-dim); text-decoration:none;">delomite.com</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <!-- ══════════════════ PAGE: OVERVIEW ══════════════════ -->
+      <div id="page-overview" class="page active">
+        <div class="page-title">
+          <h2>OTC Overview</h2>
+          <p>FY 2024 · All pairs · Settled transactions only</p>
+        </div>
+
+        <!-- KPI STRIP -->
+        <div class="kpi-strip">
+          <div class="kpi gold">
+            <div class="kpi-label">Net PnL (FY 2024)</div>
+          <div class="kpi-value gold">IDR 41.4B</div>
+            <div class="kpi-sub">~$1.6M USD · settled only</div>
+          </div>
+          <div class="kpi green">
+            <div class="kpi-label">Total Volume</div>
+          <div class="kpi-value green">IDR 18.2T</div>
+            <div class="kpi-sub">~$660M USD notional</div>
+          </div>
+          <div class="kpi blue">
+            <div class="kpi-label">Total Transactions</div>
+          <div class="kpi-value blue">5,968</div>
+          <div class="kpi-sub">92.8% settlement rate</div>
+          </div>
+          <div class="kpi purple">
+            <div class="kpi-label">Avg Spread</div>
+          <div class="kpi-value purple">30 bps</div>
+            <div class="kpi-sub">Blended across all pairs</div>
+          </div>
+        </div>
+
+        <!-- STATUS ROW -->
+        <div class="status-row">
+          <div class="status-pill settled">
+          <div class="num">5,537</div>
+            <div class="lbl">Settled</div>
+          </div>
+          <div class="status-pill pending">
+          <div class="num">201</div>
+            <div class="lbl">Pending</div>
+          </div>
+          <div class="status-pill recon">
+          <div class="num">177</div>
+            <div class="lbl">Reconciling</div>
+          </div>
+          <div class="status-pill failed">
+          <div class="num">53</div>
+            <div class="lbl">Failed</div>
+          </div>
+        </div>
+
+        <!-- MONTHLY BAR + PAIR DONUT -->
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Monthly Net PnL (IDR)</span>
+              <span class="card-badge">FY 2024</span>
+            </div>
+            <div class="card-body">
+              <div class="bar-chart" id="monthly-bar"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">PnL by Pair</span>
+              <span class="card-badge">Settled</span>
+            </div>
+            <div class="card-body">
+              <div class="donut-wrap">
+                <svg class="donut-svg" width="110" height="110" viewBox="0 0 110 110" id="donut-svg"></svg>
+                <div class="donut-legend" id="donut-legend"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLIENT PNL + DIRECTION -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Top Clients by Net PnL</span>
+              <span class="card-badge">2024</span>
+            </div>
+            <div class="card-body">
+              <div class="hbar-list" id="client-hbar"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Buy vs Sell Flow</span>
+              <span class="card-badge">All transactions</span>
+            </div>
+            <div class="card-body">
+              <div style="display:flex; flex-direction:column; gap:16px; padding-top:8px;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="color:var(--blue); font-size:0.85rem; font-weight:600;">BUY (Client buys crypto)</span>
+                    <span style="font-family:'DM Mono',monospace; font-size:0.82rem; color:var(--muted);">1,862 ·
+                      55.0%</span>
+                  </div>
+                  <div class="hbar-track">
+                    <div class="hbar-fill" style="width:55%; background:var(--blue);"></div>
+                  </div>
+                </div>
+                <div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="color:var(--red); font-size:0.85rem; font-weight:600;">SELL (Client sells
+                      crypto)</span>
+                    <span style="font-family:'DM Mono',monospace; font-size:0.82rem; color:var(--muted);">1,522 ·
+                      45.0%</span>
+                  </div>
+                  <div class="hbar-track">
+                    <div class="hbar-fill" style="width:45%; background:var(--red);"></div>
+                  </div>
+                </div>
+
+                <div style="border-top:1px solid var(--border); padding-top:16px;">
+                  <div class="pair-summary" id="pair-summary-small"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ PAGE: PNL ══════════════════ -->
+      <div id="page-pnl" class="page">
+        <div class="page-title">
+          <h2>P&amp;L Analysis</h2>
+          <p>Revenue recognition on full settlement of both legs</p>
+        </div>
+
+        <div class="kpi-strip">
+          <div class="kpi gold">
+            <div class="kpi-label">Gross Spread (FY)</div>
+          <div class="kpi-value gold">IDR 41.4B</div>
+            <div class="kpi-sub">Before regulatory tax</div>
+          </div>
+          <div class="kpi green">
+            <div class="kpi-label">Net PnL (FY)</div>
+            <div class="kpi-value green">IDR 25.8B</div>
+            <div class="kpi-sub">After 0.21% OJK tax</div>
+          </div>
+          <div class="kpi blue">
+            <div class="kpi-label">Tax Paid (FY)</div>
+            <div class="kpi-value blue">IDR 19.6B</div>
+            <div class="kpi-sub">Regulatory compliance</div>
+          </div>
+          <div class="kpi purple">
+            <div class="kpi-label">Tax/Spread Ratio</div>
+            <div class="kpi-value purple">43%</div>
+            <div class="kpi-sub">Effective tax burden</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title">Monthly Waterfall: Gross Spread → Tax → Net PnL</span>
+            <span class="card-badge">IDR billions</span>
+          </div>
+          <div class="card-body">
+            <div id="waterfall-chart" style="height:180px; display:flex; align-items:flex-end; gap:4px;"></div>
+            <div style="display:flex; gap:20px; margin-top:14px;">
+              <span style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--muted);">
+                <span
+                  style="width:10px; height:10px; border-radius:2px; background:var(--gold); display:inline-block;"></span>Gross
+                Spread
+              </span>
+              <span style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--muted);">
+                <span
+                  style="width:10px; height:10px; border-radius:2px; background:var(--red); display:inline-block;"></span>Tax
+                (0.21%)
+              </span>
+              <span style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--muted);">
+                <span
+                  style="width:10px; height:10px; border-radius:2px; background:var(--green); display:inline-block;"></span>Net
+                PnL
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">PnL Breakdown by Pair</span>
+            <span class="card-badge">FY 2024 · Settled</span>
+          </div>
+          <div class="card-body">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Pair</th>
+                  <th>Transactions</th>
+                  <th>Avg Spread (bps)</th>
+                  <th>Net PnL (IDR)</th>
+                  <th>PnL Share</th>
+                </tr>
+              </thead>
+              <tbody id="pair-pnl-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ PAGE: TRANSACTIONS ══════════════════ -->
+      <div id="page-transactions" class="page">
+        <div class="page-title">
+          <h2>Recent Transactions</h2>
+          <p>Latest 20 settled transactions · Sorted by trade timestamp</p>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0; overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>TX ID</th>
+                  <th>Date</th>
+                  <th>Pair</th>
+                  <th>Dir</th>
+                  <th>Client</th>
+                  <th>Volume</th>
+                  <th>Rate (IDR)</th>
+                  <th>IDR Amount</th>
+                  <th>Spread</th>
+                  <th>Net PnL</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="tx-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ PAGE: PRICER ══════════════════ -->
+      <div id="page-pricer" class="page">
+        <div class="page-title">
+          <h2>OTC Pricer</h2>
+          <p>Live quote calculator · MM rate + spread + 0.21% OJK tax</p>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title">Quote Calculator</span>
+            <span class="card-badge">Indicative only</span>
+          </div>
+          <div class="card-body">
+            <div class="pricer-form">
+              <div class="form-group">
+                <label class="form-label">Pair</label>
+                <select class="form-select" id="p-pair" onchange="updateSpreadHint()">
+                  <option value="USDT/IDR">USDT/IDR</option>
+                  <option value="USDC/IDR">USDC/IDR</option>
+                  <option value="BTC/IDR">BTC/IDR</option>
+                  <option value="PAXG/IDR">PAXG/IDR</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">MM Indicative Rate (IDR)</label>
+                <input class="form-input" type="number" id="p-mm-rate" placeholder="e.g. 15800" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Volume (crypto units)</label>
+                <input class="form-input" type="number" id="p-volume" placeholder="e.g. 100000" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Spread (bps) <span id="spread-hint"
+                    style="color:var(--muted); font-size:0.7rem;"></span></label>
+                <input class="form-input" type="number" id="p-spread" placeholder="e.g. 20" />
+              </div>
+            </div>
+
+            <button class="calc-btn" onclick="calculateQuote()">Calculate Quote</button>
+
+            <div class="pricer-result" style="margin-top:20px;" id="pricer-result">
+              <div class="pricer-grid">
+                <div class="pricer-item">
+                  <div class="p-label">Buy Quote (IDR/unit)</div>
+                  <div class="p-value buy-quote" id="r-buy">—</div>
+                </div>
+                <div class="pricer-item">
+                  <div class="p-label">Sell Quote (IDR/unit)</div>
+                  <div class="p-value sell-quote" id="r-sell">—</div>
+                </div>
+                <div class="pricer-item">
+                  <div class="p-label">Est. Net PnL (IDR)</div>
+                  <div class="p-value pnl" id="r-pnl">—</div>
+                </div>
+              </div>
+              <div class="pricer-grid">
+                <div class="pricer-item">
+                  <div class="p-label">Total IDR (Buy)</div>
+                  <div class="p-value" style="color:var(--text); font-size:0.9rem;" id="r-buy-total">—</div>
+                </div>
+                <div class="pricer-item">
+                  <div class="p-label">Total IDR (Sell)</div>
+                  <div class="p-value" style="color:var(--text); font-size:0.9rem;" id="r-sell-total">—</div>
+                </div>
+                <div class="pricer-item">
+                  <div class="p-label">Tax (0.21%)</div>
+                  <div class="p-value" style="color:var(--red); font-size:0.9rem;" id="r-tax">—</div>
+                </div>
+              </div>
+              <div class="pricer-note">
+                Formula: Buy quote = MM rate × (1 + spread + 0.21% tax) · Sell quote = MM rate × (1 − spread − 0.21%
+                tax) · PnL recognized on full settlement of both crypto and fiat legs · Tax remitted per OJK PMK
+                regulation.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Typical Spread Ranges by Pair</span>
+            <span class="card-badge">Historical average</span>
+          </div>
+          <div class="card-body">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Pair</th>
+                  <th>Min Spread</th>
+                  <th>Max Spread</th>
+                  <th>Avg (FY 2024)</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="pair-chip"><span class="pair-dot usdt"></span>USDT/IDR</span></td>
+                  <td>12 bps</td>
+                  <td>28 bps</td>
+                  <td>20 bps</td>
+                  <td>Tightest — high frequency stablecoin</td>
+                </tr>
+                <tr>
+                  <td><span class="pair-chip"><span class="pair-dot usdc"></span>USDC/IDR</span></td>
+                  <td>15 bps</td>
+                  <td>29 bps</td>
+                  <td>22 bps</td>
+                  <td>Slightly wider — lower liquidity vs USDT</td>
+                </tr>
+                <tr>
+                  <td><span class="pair-chip"><span class="pair-dot btc"></span>BTC/IDR</span></td>
+                  <td>45 bps</td>
+                  <td>120 bps</td>
+                  <td>84 bps</td>
+                  <td>Wider — price volatility risk during settlement window</td>
+                </tr>
+                <tr>
+                  <td><span class="pair-chip"><span class="pair-dot paxg"></span>PAXG/IDR</span></td>
+                  <td>60 bps</td>
+                  <td>150 bps</td>
+                  <td>99 bps</td>
+                  <td>Widest — gold premium + FX conversion risk</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /layout -->
+
+  <script>
+    // ── DATA ──────────────────────────────────────────────────────
+    // BAKED DATA
+const monthly = [
+  {
+    "m": "Jan",
+    "pnl": 3674409758,
+    "gross": 7169874960,
+    "tax": 3495465202,
+    "tx": 481
+  },
+  {
+    "m": "Feb",
+    "pnl": 3346256138,
+    "gross": 6481851732,
+    "tax": 3135595594,
+    "tx": 463
+  },
+  {
+    "m": "Mar",
+    "pnl": 3592645840,
+    "gross": 6792972147,
+    "tax": 3200326307,
+    "tx": 468
+  },
+  {
+    "m": "Apr",
+    "pnl": 3261328195,
+    "gross": 6265487001,
+    "tax": 3004158806,
+    "tx": 454
+  },
+  {
+    "m": "May",
+    "pnl": 3645648893,
+    "gross": 6965515605,
+    "tax": 3319866711,
+    "tx": 489
+  },
+  {
+    "m": "Jun",
+    "pnl": 3157837439,
+    "gross": 6094832886,
+    "tax": 2936995446,
+    "tx": 425
+  },
+  {
+    "m": "Jul",
+    "pnl": 3644375618,
+    "gross": 7067696938,
+    "tax": 3423321320,
+    "tx": 488
+  },
+  {
+    "m": "Aug",
+    "pnl": 3238897542,
+    "gross": 6223204951,
+    "tax": 2984307409,
+    "tx": 458
+  },
+  {
+    "m": "Sep",
+    "pnl": 3410034868,
+    "gross": 6573201856,
+    "tax": 3163166987,
+    "tx": 428
+  },
+  {
+    "m": "Oct",
+    "pnl": 3674092020,
+    "gross": 7035387077,
+    "tax": 3361295057,
+    "tx": 481
+  },
+  {
+    "m": "Nov",
+    "pnl": 3631702415,
+    "gross": 6947550315,
+    "tax": 3315847900,
+    "tx": 475
+  },
+  {
+    "m": "Dec",
+    "pnl": 3084890952,
+    "gross": 6058044865,
+    "tax": 2973153913,
+    "tx": 427
+  }
+];
+
+const pairData = [
+  {
+    "pair": "USDT/IDR",
+    "pnl": 22398249908,
+    "tx": 2750,
+    "bps": 20.0,
+    "color": "#26a17b",
+    "cls": "usdt"
+  },
+  {
+    "pair": "USDC/IDR",
+    "pnl": 14269725845,
+    "tx": 2011,
+    "bps": 22.0,
+    "color": "#2775ca",
+    "cls": "usdc"
+  },
+  {
+    "pair": "BTC/IDR",
+    "pnl": 4100140292,
+    "tx": 529,
+    "bps": 81.8,
+    "color": "#f7931a",
+    "cls": "btc"
+  },
+  {
+    "pair": "PAXG/IDR",
+    "pnl": 594003635,
+    "tx": 247,
+    "bps": 103.4,
+    "color": "#d4a843",
+    "cls": "paxg"
+  }
+];
+
+const clientPnl = [
+  {
+    "name": "PT Sumber Berkah",
+    "pnl": 4499286924
+  },
+  {
+    "name": "PT Teknologi Nusantara",
+    "pnl": 4461030716
+  },
+  {
+    "name": "Jakarta Capital Alpha",
+    "pnl": 4356583958
+  },
+  {
+    "name": "Mega Lestari",
+    "pnl": 4256439317
+  },
+  {
+    "name": "Andi Pratama",
+    "pnl": 4215321831
+  },
+  {
+    "name": "Indo Global Investment",
+    "pnl": 4168919256
+  },
+  {
+    "name": "PT Maju Jaya Bersama",
+    "pnl": 4119149753
+  },
+  {
+    "name": "Budi Santoso",
+    "pnl": 3996084209
+  }
+];
+
+const recentTx = [
+  {
+    "id": "OTC-05954",
+    "date": "2024-12-31",
+    "pair": "USDC/IDR",
+    "dir": "SELL",
+    "client": "PT Teknologi Nusantara",
+    "vol": 276060,
+    "rate": 15766,
+    "amt": 4352479969,
+    "bps": 29,
+    "pnl": 12731550,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05946",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "SELL",
+    "client": "Jakarta Capital Alpha",
+    "vol": 149289,
+    "rate": 16557,
+    "amt": 2471794590,
+    "bps": 19,
+    "pnl": 4736117,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05949",
+    "date": "2024-12-31",
+    "pair": "USDC/IDR",
+    "dir": "SELL",
+    "client": "Andi Pratama",
+    "vol": 98780,
+    "rate": 15749,
+    "amt": 1555721855,
+    "bps": 28,
+    "pnl": 4393558,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05960",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "SELL",
+    "client": "Siti Aminah",
+    "vol": 341950,
+    "rate": 16534,
+    "amt": 5654066440,
+    "bps": 18,
+    "pnl": 10263654,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05953",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "BUY",
+    "client": "PT Sumber Berkah",
+    "vol": 294407,
+    "rate": 16676,
+    "amt": 4909718290,
+    "bps": 24,
+    "pnl": 11684347,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05965",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "BUY",
+    "client": "Budi Santoso",
+    "vol": 86586,
+    "rate": 16687,
+    "amt": 1444917563,
+    "bps": 17,
+    "pnl": 2435574,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05962",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "SELL",
+    "client": "PT Maju Jaya Bersama",
+    "vol": 412595,
+    "rate": 16540,
+    "amt": 6824396272,
+    "bps": 18,
+    "pnl": 12388118,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05956",
+    "date": "2024-12-31",
+    "pair": "BTC/IDR",
+    "dir": "BUY",
+    "client": "Mega Lestari",
+    "vol": 2,
+    "rate": 820912958,
+    "amt": 1671602420,
+    "bps": 102,
+    "pnl": 16800520,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05966",
+    "date": "2024-12-31",
+    "pair": "USDC/IDR",
+    "dir": "BUY",
+    "client": "Jakarta Capital Alpha",
+    "vol": 44606,
+    "rate": 15885,
+    "amt": 708603439,
+    "bps": 17,
+    "pnl": 1194432,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05948",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "SELL",
+    "client": "Mega Lestari",
+    "vol": 303976,
+    "rate": 16548,
+    "amt": 5030297278,
+    "bps": 14,
+    "pnl": 7104253,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05958",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "SELL",
+    "client": "Siti Aminah",
+    "vol": 148186,
+    "rate": 16567,
+    "amt": 2455077612,
+    "bps": 12,
+    "pnl": 2972917,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05945",
+    "date": "2024-12-31",
+    "pair": "USDC/IDR",
+    "dir": "SELL",
+    "client": "Siti Aminah",
+    "vol": 69082,
+    "rate": 15764,
+    "amt": 1089054078,
+    "bps": 24,
+    "pnl": 2635882,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05959",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "BUY",
+    "client": "Andi Pratama",
+    "vol": 498269,
+    "rate": 16662,
+    "amt": 8302587007,
+    "bps": 14,
+    "pnl": 11522269,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05950",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "BUY",
+    "client": "PT Teknologi Nusantara",
+    "vol": 341133,
+    "rate": 16677,
+    "amt": 5689388736,
+    "bps": 14,
+    "pnl": 7895692,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05955",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "SELL",
+    "client": "Andi Pratama",
+    "vol": 453957,
+    "rate": 16542,
+    "amt": 7509646968,
+    "bps": 21,
+    "pnl": 15903287,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05957",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "BUY",
+    "client": "Jakarta Capital Alpha",
+    "vol": 387119,
+    "rate": 16684,
+    "amt": 6458921352,
+    "bps": 24,
+    "pnl": 15371204,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05963",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "SELL",
+    "client": "Andi Pratama",
+    "vol": 434737,
+    "rate": 16544,
+    "amt": 7192426991,
+    "bps": 15,
+    "pnl": 10882191,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05967",
+    "date": "2024-12-31",
+    "pair": "BTC/IDR",
+    "dir": "BUY",
+    "client": "PT Sumber Berkah",
+    "vol": 0,
+    "rate": 817764537,
+    "amt": 581496636,
+    "bps": 63,
+    "pnl": 3622740,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05951",
+    "date": "2024-12-31",
+    "pair": "USDC/IDR",
+    "dir": "BUY",
+    "client": "Indo Global Investment",
+    "vol": 216739,
+    "rate": 15909,
+    "amt": 3448194940,
+    "bps": 21,
+    "pnl": 7180637,
+    "status": "SETTLED"
+  },
+  {
+    "id": "OTC-05947",
+    "date": "2024-12-31",
+    "pair": "USDT/IDR",
+    "dir": "BUY",
+    "client": "Andi Pratama",
+    "vol": 179501,
+    "rate": 16669,
+    "amt": 2992270437,
+    "bps": 18,
+    "pnl": 5340751,
+    "status": "SETTLED"
+  }
+];
+
+// STATE-MARKER
+
+    // ── CURRENCY STATE ────────────────────────────────────────────
+    let STATE = {
+      currency: 'IDR',
+      fxRate: 15426
+    };
+
+    function setCurrency(curr) {
+      STATE.currency = curr;
+      document.getElementById('btn-idr').classList.toggle('active', curr === 'IDR');
+      document.getElementById('btn-usd').classList.toggle('active', curr === 'USD');
+      refreshDashboard();
+    }
+
+    function updateFxRate() {
+      STATE.fxRate = parseFloat(document.getElementById('fx-rate').value) || 15426;
+      if (STATE.currency === 'USD') refreshDashboard();
+    }
+
+    function refreshDashboard() {
+      buildMonthlyBar();
+      buildDonut();
+      buildClientHbar();
+      buildPairSmall();
+      buildWaterfall();
+      buildPairTable();
+      buildTxTable();
+    }
+
+
+    // ── HELPERS ───────────────────────────────────────────────────
+    const fmtB = v => {
+      if (STATE.currency === 'USD') return "$" + (v / STATE.fxRate / 1e6).toFixed(1) + "M";
+      return "IDR " + (v / 1e9).toFixed(2) + "B";
+    };
+    const fmtM = v => {
+      if (STATE.currency === 'USD') return "$" + (v / STATE.fxRate / 1e6).toFixed(1) + "M";
+      return "IDR " + (v / 1e6).toFixed(1) + "M";
+    };
+    const fmtN = v => {
+      if (STATE.currency === 'USD') return (v / STATE.fxRate).toLocaleString("en-US");
+      return v.toLocaleString("id-ID");
+    };
+    const fmtK = v => {
+      const val = STATE.currency === 'USD' ? v / STATE.fxRate : v;
+      return val >= 1e6 ? (val / 1e6).toFixed(2) + "M" : val >= 1e3 ? (val / 1e3).toFixed(1) + "K" : val.toFixed(4);
+    };
+
+    function pairColor(p) {
+      return {
+        "USDT/IDR": "#26a17b", "USDC/IDR": "#2775ca", "BTC/IDR": "#f7931a", "PAXG/IDR": "#d4a843"
+      }[p] || "#6b7280";
+    }
+
+    // ── NAV ───────────────────────────────────────────────────────
+    function showPage(name) {
+      document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+      document.getElementById("page-" + name).classList.add("active");
+      event.currentTarget.classList.add("active");
+    }
+
+    // ── MONTHLY BAR ───────────────────────────────────────────────
+    function buildMonthlyBar() {
+      const max = Math.max(...monthly.map(m => m.pnl));
+      const el = document.getElementById("monthly-bar");
+      el.innerHTML = monthly.map(m => `
+    <div class="bar-col">
+      <div class="bar" style="height:${(m.pnl / max) * 120}px; background:var(--gold); opacity:0.85;"
+        title="${m.m}: ${fmtB(m.pnl)}"></div>
+      <div class="bar-label">${m.m}</div>
+    </div>
+  `).join("");
+    }
+
+    // ── DONUT ─────────────────────────────────────────────────────
+    function buildDonut() {
+      const total = pairData.reduce((s, p) => s + p.pnl, 0);
+      const r = 42, cx = 55, cy = 55, stroke = 16;
+      const circumference = 2 * Math.PI * r;
+      let offset = 0;
+      let paths = "";
+      pairData.forEach(p => {
+        const pct = p.pnl / total;
+        const dash = pct * circumference;
+        const gap = circumference - dash;
+        paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${p.color}"
+      stroke-width="${stroke}" stroke-dasharray="${dash} ${gap}"
+      stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+        offset += dash;
+      });
+      document.getElementById("donut-svg").innerHTML = paths +
+        `<text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="#e8eaf0" font-size="9" font-family="DM Mono">IDR</text>
+     <text x="${cx}" y="${cy + 8}" text-anchor="middle" fill="#d4a843" font-size="8" font-family="DM Mono">25.8B</text>`;
+
+      document.getElementById("donut-legend").innerHTML = pairData.map(p => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${p.color};"></div>
+      <div>
+        <div class="legend-name">${p.pair}</div>
+        <div class="legend-val">${fmtB(p.pnl)}</div>
+      </div>
+    </div>
+  `).join("");
+    }
+
+    // ── CLIENT HBAR ───────────────────────────────────────────────
+    function buildClientHbar() {
+      const max = clientPnl[0].pnl;
+      document.getElementById("client-hbar").innerHTML = clientPnl.map(c => `
+    <div class="hbar-row">
+      <div class="hbar-meta">
+        <span class="hbar-name">${c.name}</span>
+        <span class="hbar-val">${fmtB(c.pnl)}</span>
+      </div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${(c.pnl / max) * 100}%;"></div></div>
+    </div>
+  `).join("");
+    }
+
+    // ── PAIR SUMMARY SMALL ────────────────────────────────────────
+    function buildPairSmall() {
+      document.getElementById("pair-summary-small").innerHTML = pairData.map(p => `
+    <div class="pair-row">
+      <div class="pair-info">
+        <span class="pair-dot ${p.cls}"></span>
+        <div>
+          <div class="pair-name">${p.pair}</div>
+          <div class="pair-txcount">${p.tx} transactions</div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'DM Mono',monospace; font-size:0.82rem; color:var(--gold);">${fmtB(p.pnl)}</div>
+        <div style="font-size:0.72rem; color:var(--muted);">${p.bps} bps avg</div>
+      </div>
+    </div>
+  `).join("");
+    }
+
+    // ── WATERFALL CHART ───────────────────────────────────────────
+    function buildWaterfall() {
+      const maxGross = Math.max(...monthly.map(m => m.gross));
+      const el = document.getElementById("waterfall-chart");
+      el.innerHTML = monthly.map(m => {
+        const gh = (m.gross / maxGross) * 160;
+        const th = (m.tax / maxGross) * 160;
+        const ph = (m.pnl / maxGross) * 160;
+        return `
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; height:180px; justify-content:flex-end;">
+      <div style="width:100%; display:flex; gap:2px; justify-content:center; align-items:flex-end;">
+        <div style="width:30%; height:${gh}px; background:var(--gold); opacity:0.7; border-radius:2px 2px 0 0;"
+          title="Gross: ${fmtB(m.gross)}"></div>
+        <div style="width:30%; height:${th}px; background:var(--red); opacity:0.7; border-radius:2px 2px 0 0;"
+          title="Tax: ${fmtB(m.tax)}"></div>
+        <div style="width:30%; height:${ph}px; background:var(--green); opacity:0.85; border-radius:2px 2px 0 0;"
+          title="Net: ${fmtB(m.pnl)}"></div>
+      </div>
+      <div style="font-size:0.6rem; color:var(--muted); font-family:'DM Mono',monospace;">${m.m}</div>
+    </div>`;
+      }).join("");
+    }
+
+    // ── PAIR PNL TABLE ────────────────────────────────────────────
+    function buildPairTable() {
+      const total = pairData.reduce((s, p) => s + p.pnl, 0);
+      document.getElementById("pair-pnl-table").innerHTML = pairData.map(p => `
+    <tr>
+      <td><span class="pair-chip"><span class="pair-dot ${p.cls}"></span>${p.pair}</span></td>
+      <td>${p.tx.toLocaleString()}</td>
+      <td>${p.bps} bps</td>
+      <td style="color:var(--gold);">${fmtB(p.pnl)}</td>
+      <td>
+        <div class="hbar-track" style="width:120px;">
+          <div class="hbar-fill" style="width:${(p.pnl / total) * 100}%; background:${p.color};"></div>
+        </div>
+        <span style="font-size:0.72rem; color:var(--muted);">${((p.pnl / total) * 100).toFixed(1)}%</span>
+      </td>
+    </tr>
+  `).join("");
+    }
+
+    // ── TX TABLE ──────────────────────────────────────────────────
+    function buildTxTable() {
+      document.getElementById("tx-table").innerHTML = recentTx.map(t => `
+    <tr>
+      <td style="color:var(--muted);">${t.id}</td>
+      <td>${t.date}</td>
+      <td><span class="pair-chip"><span class="pair-dot ${t.pair.split("/")[0].toLowerCase()}"></span>${t.pair}</span></td>
+      <td><span class="badge ${t.dir.toLowerCase()}">${t.dir}</span></td>
+      <td>${t.client}</td>
+      <td>${fmtK(t.vol)}</td>
+      <td>${fmtN(t.rate)}</td>
+      <td>${fmtB(t.amt)}</td>
+      <td>${t.bps} bps</td>
+      <td style="color:var(--green);">${fmtM(t.pnl)}</td>
+      <td><span class="badge settled">✓</span></td>
+    </tr>
+  `).join("");
+    }
+
+    // ── PRICER ────────────────────────────────────────────────────
+    const spreadHints = {
+      "USDT/IDR": "typical 12–28 bps",
+      "USDC/IDR": "typical 15–29 bps",
+      "BTC/IDR": "typical 45–120 bps",
+      "PAXG/IDR": "typical 60–150 bps",
+    };
+
+    function updateSpreadHint() {
+      const pair = document.getElementById("p-pair").value;
+      document.getElementById("spread-hint").textContent = spreadHints[pair];
+    }
+
+    function calculateQuote() {
+      const mmRate = parseFloat(document.getElementById("p-mm-rate").value);
+      const volume = parseFloat(document.getElementById("p-volume").value);
+      const spreadB = parseFloat(document.getElementById("p-spread").value);
+
+      if (!mmRate || !volume || !spreadB) {
+        alert("Please fill in all fields."); return;
+      }
+
+      const spread = spreadB / 10000;
+      const tax = 0.0021;
+
+      const buyQuote = mmRate * (1 + spread + tax);
+      const sellQuote = mmRate * (1 - spread - tax);
+      const buyTotal = buyQuote * volume;
+      const sellTotal = sellQuote * volume;
+      const taxAmt = buyTotal * tax;
+      const grossSpread = Math.abs(buyTotal - mmRate * volume);
+      const netPnl = grossSpread - taxAmt;
+
+      document.getElementById("r-buy").textContent = fmtN(Math.round(buyQuote));
+      document.getElementById("r-sell").textContent = fmtN(Math.round(sellQuote));
+      document.getElementById("r-pnl").textContent = "IDR " + fmtN(Math.round(netPnl));
+      document.getElementById("r-buy-total").textContent = "IDR " + fmtN(Math.round(buyTotal));
+      document.getElementById("r-sell-total").textContent = "IDR " + fmtN(Math.round(sellTotal));
+      document.getElementById("r-tax").textContent = "IDR " + fmtN(Math.round(taxAmt));
+    }
+
+    // ── INIT ──────────────────────────────────────────────────────
+    buildMonthlyBar();
+    buildDonut();
+    buildClientHbar();
+    buildPairSmall();
+    buildWaterfall();
+    buildPairTable();
+    buildTxTable();
+    updateSpreadHint();
+  </script>
+</body>
+
+</html>

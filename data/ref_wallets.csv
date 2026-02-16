@@ -1,0 +1,6 @@
+id,chain,asset,type
+WALLET-USDT-001,TRC20,USDT,Client Settlement
+WALLET-USDT-002,ERC20,USDT,MM Settlement
+WALLET-USDC-001,ERC20,USDC,Client Settlement
+WALLET-BTC-001,BTC,BTC,Client Settlement
+WALLET-PAXG-001,ERC20,PAXG,Client Settlement

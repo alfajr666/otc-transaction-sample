@@ -1,0 +1,35 @@
+<div style="background:#111111; border-radius:8px; padding:24px; margin:32px 0; font-family:'DM Mono', monospace; color:#f0f0f0;">
+  <canvas id="chart-02" height="220"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+  (function() {
+    
+    const ctx = document.getElementById('chart-02').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['2024-01', '2024-02', '2024-03', '2024-04', '2024-05', '2024-06', '2024-07', '2024-08', '2024-09', '2024-10', '2024-11', '2024-12'],
+            datasets: [{
+                data: [3674409758.377928, 3343962807.974533, 3594939170.4936743, 3261328195.219864, 3645648893.737184, 3157837439.489953, 3642990868.445873, 3240282292.355324, 3410034868.665912, 3671694060.0894575, 3634100375.0993013, 3084890952.1062303],
+                borderColor: '#d4a843',
+                backgroundColor: 'rgba(212, 168, 67, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a1a' } },
+            scales: {
+                x: { grid: { color: '#1e1e1e' }, ticks: { color: '#666666', font: { family: "'DM Mono', monospace", size: 10 } } },
+                y: { grid: { color: '#1e1e1e' }, ticks: { color: '#666666', font: { family: "'DM Mono', monospace", size: 10 } } }
+            }
+        }
+    });
+
+  })();
+  </script>
+</div>

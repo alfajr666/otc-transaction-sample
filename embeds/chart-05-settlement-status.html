@@ -1,0 +1,32 @@
+<div style="background:#111111; border-radius:8px; padding:24px; margin:32px 0; font-family:'DM Mono', monospace; color:#f0f0f0;">
+  <canvas id="chart-05" height="280"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+  (function() {
+    
+    const ctx = document.getElementById('chart-05').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['SETTLED', 'PENDING', 'RECONCILING', 'FAILED'],
+            datasets: [{
+                data: [5537, 201, 177, 53],
+                backgroundColor: ['#3ecf8e', '#d4a843', '#f7931a', '#f87171'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: '#1e1e1e' }, ticks: { color: '#666666', font: { family: "'DM Mono', monospace", size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: '#f0f0f0', font: { family: "'DM Mono', monospace", size: 11 } } }
+            }
+        }
+    });
+
+  })();
+  </script>
+</div>

@@ -1,0 +1,5 @@
+id,bank,currency,type
+BANK-IDR-001,BCA,IDR,Operating
+BANK-IDR-002,Mandiri,IDR,Settlement
+BANK-IDR-003,BNI,IDR,Reserve
+BANK-USD-001,DBS Singapore,USD,Nostro
