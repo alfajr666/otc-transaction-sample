@@ -312,7 +312,7 @@ This project is for **portfolio demonstration purposes**. The data is synthetic 
 
 **Gilang Fajar Wijayanto**  
 Senior Treasury & Finance Operations Specialist  
-📧 gilang.f66@delomite.com  
+📧 gilang.f@delomite.com  
 🌐 [delomite.com](https://delomite.com)  
 💼 [LinkedIn](https://www.linkedin.com/in/gilang-fajar-6973119a/)
 
