@@ -1,6 +1,5 @@
 # OTC Treasury Reconciliation System
 
-![Architecture Flow](diagrams/architecture_flow.png)
 
 **Portfolio Project by Gilang Fajar Wijayanto**  
 Senior Treasury & Finance Operations Specialist | CFA Level I | FRM Part I  
@@ -313,7 +312,7 @@ This project is for **portfolio demonstration purposes**. The data is synthetic 
 
 **Gilang Fajar Wijayanto**  
 Senior Treasury & Finance Operations Specialist  
-📧 gilang.fajar66@gmail.com  
+📧 gilang.f66@delomite.com  
 🌐 [delomite.com](https://delomite.com)  
 💼 [LinkedIn](https://www.linkedin.com/in/gilang-fajar-6973119a/)
 

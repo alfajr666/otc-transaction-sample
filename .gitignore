@@ -84,6 +84,9 @@ Temporary Items
 .coverage
 htmlcov/
 
+# Internal documentation
+AGENT_BRIEF.md
+
 # Backup files
 *.bak
 *.backup
