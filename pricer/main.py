@@ -1,9 +1,19 @@
 from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
 from datetime import datetime
-from .config import PARAMS, API_KEY
-from .models import QuoteRequest, QuoteResponse, ParamsUpdateRequest
+from config import PARAMS, API_KEY
+from models import QuoteRequest, QuoteResponse, ParamsUpdateRequest
 
 app = FastAPI(title="OTC Pricer API")
+
+# Serve static files (CSS/JS)
+app.mount("/static", StaticFiles(directory="."), name="static")
+
+@app.get("/")
+async def read_index():
+    return FileResponse('index.html')
 
 def verify_api_key(x_api_key: str = Header(...)):
     if x_api_key != API_KEY:

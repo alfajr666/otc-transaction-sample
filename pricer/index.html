@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTC Pricer | Treasury Intelligence</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="cockpit">
+        <header>
+            <h1>OTC PRICER <span class="badge">Real-time</span></h1>
+            <p class="subtitle">Institutional Treasury Calculation Engine</p>
+        </header>
+
+        <main class="grid">
+            <section class="input-section">
+                <div class="form-group">
+                    <label>Currency Pair</label>
+                    <select id="pair">
+                        <option value="USDT/IDR">USDT/IDR</option>
+                        <option value="USDC/IDR">USDC/IDR</option>
+                        <option value="BTC/IDR">BTC/IDR</option>
+                        <option value="PAXG/IDR">PAXG/IDR</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>MM Rate (IDR)</label>
+                    <input type="number" id="mmRate" placeholder="15500" value="15500">
+                </div>
+
+                <div class="form-group">
+                    <label>Volume</label>
+                    <input type="number" id="volume" placeholder="1000" value="1000">
+                </div>
+
+                <div class="form-group">
+                    <label>Client Tier</label>
+                    <div class="tier-selector">
+                        <button class="tier-btn active" data-tier="A">A</button>
+                        <button class="tier-btn" data-tier="B">B</button>
+                        <button class="tier-btn" data-tier="C">C</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="output-section">
+                <div class="quote-card">
+                    <p class="quote-label">INDICATIVE BUY QUOTE</p>
+                    <p class="quote-value buy-value" id="buyQuote">IDR 0.00</p>
+                </div>
+
+                <div class="quote-card">
+                    <p class="quote-label">INDICATIVE SELL QUOTE</p>
+                    <p class="quote-value sell-value" id="sellQuote">IDR 0.00</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <p class="stat-label">Gross Spread</p>
+                        <p class="stat-value" id="grossSpread">IDR 0</p>
+                    </div>
+                    <div class="stat-item">
+                        <p class="stat-label">Tax (0.21%)</p>
+                        <p class="stat-value" id="taxAmount">IDR 0</p>
+                    </div>
+                    <div class="stat-item">
+                        <p class="stat-label" style="grid-column: span 2">Net Project PnL</p>
+                        <p class="stat-value pnl-value" id="netPnl">IDR 0</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <span>SYSTEM STATUS: OPERATIONAL</span>
+            <span id="timestamp">LAST UPDATE: JUST NOW</span>
+        </footer>
+    </div>
+
+    <script>
+        const inputs = ['pair', 'mmRate', 'volume'];
+        let activeTier = 'A';
+
+        document.querySelectorAll('.tier-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeTier = btn.dataset.tier;
+                calculate();
+            });
+        });
+
+        inputs.forEach(id => {
+            document.getElementById(id).addEventListener('input', calculate);
+        });
+
+        async function calculate() {
+            const pair = document.getElementById('pair').value;
+            const mmRate = parseFloat(document.getElementById('mmRate').value) || 0;
+            const volume = parseFloat(document.getElementById('volume').value) || 0;
+
+            if (mmRate === 0 || volume === 0) return;
+
+            try {
+                const response = await fetch('/quote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pair: pair,
+                        mm_rate: mmRate,
+                        volume: volume,
+                        client_tier: activeTier
+                    })
+                });
+
+                const data = await response.json();
+
+                document.getElementById('buyQuote').innerText = `IDR ${data.buy_quote.toLocaleString()}`;
+                document.getElementById('sellQuote').innerText = `IDR ${data.sell_quote.toLocaleString()}`;
+                document.getElementById('grossSpread').innerText = `IDR ${data.gross_spread_idr.toLocaleString()}`;
+                document.getElementById('taxAmount').innerText = `IDR ${data.tax_idr.toLocaleString()}`;
+                document.getElementById('netPnl').innerText = `IDR ${data.net_pnl_idr.toLocaleString()}`;
+                document.getElementById('timestamp').innerText = `LAST UPDATE: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                console.error('Pricer Error:', error);
+            }
+        }
+
+        // Initial calculation
+        calculate();
+    </script>
+</body>
+
+</html>
